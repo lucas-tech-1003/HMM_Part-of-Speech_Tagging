@@ -9,9 +9,8 @@ def tag(training_list, test_file, output_file):
     # Tag the words from the untagged input file and write them into the output file.
     # Doesn't do much else beyond that yet.
     print("Tagging the file.")
-    #
-    # YOUR IMPLEMENTATION GOES HERE
-    #
+
+    # read each training file and put them into a list of word-tag pairs
 
 
 if __name__ == '__main__':

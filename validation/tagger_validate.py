@@ -27,8 +27,8 @@ if __name__ == '__main__':
         for index in range(len(output)):
             if output[index] != solution[index]:
                 results_file.write(f"Line {index + 1}: "
-                                   f"expected <{output[index].strip()}> "
-                                   f"but got <{solution[index].strip()}>\n")
+                                   f"expected <{solution[index].strip()}> "
+                                   f"but got <{output[index].strip()}>\n")
             else:
                 total_matches = total_matches + 1
 
