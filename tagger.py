@@ -5,12 +5,23 @@ import os
 import sys
 
 
+def read_file_to_list(filename):
+    f = open(filename, 'r')
+    return f.readlines()
+
+
 def tag(training_list, test_file, output_file):
     # Tag the words from the untagged input file and write them into the output file.
     # Doesn't do much else beyond that yet.
     print("Tagging the file.")
 
     # read each training file and put them into a list of word-tag pairs
+    # and update the probabilities
+    full_training_list = []
+    for train_file in training_list:
+        full_training_list.extend(read_file_to_list(train_file))
+    print(len(full_training_list))
+
 
 
 if __name__ == '__main__':
