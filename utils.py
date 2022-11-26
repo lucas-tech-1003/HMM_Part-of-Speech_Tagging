@@ -14,7 +14,7 @@ username = driver.find_element(By.ID, "username")
 password = driver.find_element(By.ID, "password")
 
 username.send_keys('leihuipe')
-password.send_keys('Shenfeng1234')
+password.send_keys('')
 login = driver.find_element(By.CLASS_NAME, "btn-lg")
 login.click()
 
