@@ -247,6 +247,8 @@ if __name__ == '__main__':
 
     # Start the training and tagging operation.
     tag(training_list, test_file, output_file)
+
+    # need to change training 2
     with open(output_file, "r") as output_file, \
             open("data/training2.txt", "r") as solution_file, \
             open("results.txt", "w") as results_file:
