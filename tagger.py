@@ -152,12 +152,13 @@ def viterbi(observe, initial, trans, emission):
 
     for i in range(tag_length):
         tag = ALL_TAGS[i]
-        prob[0, i] = initial[tag] * emission[tag].get(observe[0], float(0))
+        prob[0, i] = initial[tag] * emission[tag].get(observe[0], 1e-7)
         prev[0, i] = None
     # normalize
     norm_factor = prob[0].sum()
+    pp.pprint(norm_factor)
     prob[0] = prob[0] / norm_factor
-    # pp.pprint(prob[0])
+    pp1.pprint(prob[0])
     # pp.pprint(prev)
 
     for t in range(1, word_length):
@@ -168,8 +169,8 @@ def viterbi(observe, initial, trans, emission):
             most_likely_tag = 0
             max_prob = float(0)
             for k, tag in enumerate(ALL_TAGS):
-                tran = trans[cur_tag].get(tag, 0)
-                emis = emission[cur_tag].get(cur_word, 0)
+                tran = trans[cur_tag].get(tag, 1e-7)
+                emis = emission[cur_tag].get(cur_word, 1e-7)
                 cur_prob = prob[t-1, k] * tran * emis
                 if cur_prob > max_prob:
                     max_prob = cur_prob
@@ -207,21 +208,23 @@ def tag(training_list, test_file, output_file):
         full_training_list[i] = full_training_list[i].replace(" ", "").strip().split(':')
         if len(full_training_list[i]) > 2 and full_training_list[i][-1] == "PUN":
             full_training_list[i] = [':', 'PUN']
+        full_training_list[i][0] = full_training_list[i][0].lower()
     # print(full_training_list[0:13])
 
     ## read the test files and put them into a list of word
     test_list = read_file_to_list(test_file)
+    lower_test_list = []
     for i in range(len(test_list)):
         test_list[i] = test_list[i].strip()
-
+        lower_test_list.append(test_list[i].lower())
     # pp.pprint(test_list)
 
     ## Find the initial, transition, emission probability matrix
     Initial, Transition, Emission = _initial_probability(full_training_list)
 
     ## Viterbi algorithm
-    result = viterbi(test_list, Initial, Transition, Emission)
-    pp.pprint(result)
+    result = viterbi(lower_test_list, Initial, Transition, Emission)
+    # pp.pprint(result)
 
     # write to output_file
     with open(output_file, 'w') as f:
@@ -244,3 +247,23 @@ if __name__ == '__main__':
 
     # Start the training and tagging operation.
     tag(training_list, test_file, output_file)
+    with open(output_file, "r") as output_file, \
+            open("data/training2.txt", "r") as solution_file, \
+            open("results.txt", "w") as results_file:
+        # Each word is on a separate line in each file.
+        output = output_file.readlines()
+        solution = solution_file.readlines()
+        total_matches = 0
+
+        # generate the report
+        for index in range(len(output)):
+            if output[index] != solution[index]:
+                results_file.write(f"Line {index + 1}: "
+                                   f"expected <{solution[index].strip()}> "
+                                   f"but got <{output[index].strip()}>\n")
+            else:
+                total_matches = total_matches + 1
+
+        # Add stats at the end of the results file.
+        results_file.write(f"Total words seen: {len(output)}.\n")
+        results_file.write(f"Total matches: {total_matches}.\n")
