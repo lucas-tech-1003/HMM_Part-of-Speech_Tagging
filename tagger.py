@@ -171,6 +171,9 @@ def viterbi(observe, initial, trans, emission):
                     most_likely_tag = k
             prob[t, i] = max_prob
             prev[t, i] = most_likely_tag
+    pp1 = pprint.PrettyPrinter(stream=open("prob_matrix.txt", 'w'))
+    pp1.pprint(prob)
+    pp1.pprint(prev)
     last_tag_index = np.argmax(prob[-1])
     last_tag = ALL_TAGS[last_tag_index]
     pred_list = [last_tag]
