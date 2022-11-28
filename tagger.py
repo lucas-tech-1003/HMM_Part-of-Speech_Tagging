@@ -148,11 +148,16 @@ def viterbi(observe, initial, trans, emission):
     # prev[i,j] is the tag at time i
     prev = np.zeros((word_length, tag_length))
 
+    pp1 = pprint.PrettyPrinter(stream=open("prob_matrix.txt", 'w'))
+
     for i in range(tag_length):
         tag = ALL_TAGS[i]
         prob[0, i] = initial[tag] * emission[tag].get(observe[0], float(0))
         prev[0, i] = None
-    # pp.pprint(prob)
+    # normalize
+    norm_factor = prob[0].sum()
+    prob[0] = prob[0] / norm_factor
+    # pp.pprint(prob[0])
     # pp.pprint(prev)
 
     for t in range(1, word_length):
@@ -171,9 +176,11 @@ def viterbi(observe, initial, trans, emission):
                     most_likely_tag = k
             prob[t, i] = max_prob
             prev[t, i] = most_likely_tag
-    pp1 = pprint.PrettyPrinter(stream=open("prob_matrix.txt", 'w'))
-    pp1.pprint(prob)
-    pp1.pprint(prev)
+        # normalize
+        norm_factor = prob[t].sum()
+        prob[t] = prob[t] / norm_factor
+    # pp1.pprint(prob[300:310])
+    # pp1.pprint(prev)
     last_tag_index = np.argmax(prob[-1])
     last_tag = ALL_TAGS[last_tag_index]
     pred_list = [last_tag]
