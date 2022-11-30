@@ -5,6 +5,7 @@ import os
 import pprint
 import sys
 import numpy as np
+import time
 
 END_SENTENCE_SIG = [".", "?", "!"]
 ALL_TAGS = ['AJ0', 'AJC', 'AJS', 'AT0', 'AV0', 'AVP', 'AVQ', 'CJC', 'CJS', 'CJT', 'CRD', 'DPS', 'DT0', 'DTQ', 'EX0', 'ITJ', 'NN0', 'NN1', 'NN2', 'NP0', 'ORD', 'PNI', 'PNP', 'PNQ', 'PNX', 'POS', 'PRF', 'PRP', 'PUL', 'PUN', 'PUQ', 'PUR', 'TO0', 'UNC', 'VBB', 'VBD', 'VBG', 'VBI', 'VBN', 'VBZ', 'VDB', 'VDD', 'VDG', 'VDI', 'VDN', 'VDZ', 'VHB', 'VHD', 'VHG', 'VHI', 'VHN', 'VHZ', 'VM0', 'VVB', 'VVD', 'VVG', 'VVI', 'VVN', 'VVZ', 'XX0', 'ZZ0', 'AJ0-AV0', 'AJ0-VVN', 'AJ0-VVD', 'AJ0-NN1', 'AJ0-VVG', 'AVP-PRP', 'AVQ-CJS', 'CJS-PRP', 'CJT-DT0', 'CRD-PNI', 'NN1-NP0', 'NN1-VVB', 'NN1-VVG', 'NN2-VVZ', 'VVD-VVN']
@@ -27,6 +28,7 @@ def _ambiguity_check(tag):
     """
     if len(tag) > 3 and tag not in AMBIGUITY_TAGS:
         split = tag.split("-")
+        # pp.pprint(split)
         tag = str(split[1] + "-" + split[0])
         return tag
     return tag
@@ -89,21 +91,16 @@ def _initial_probability(word_tag):
     for k in tag_first_dict:
         if tag_count_dict[k] != 0:
             tag_first_dict[k] /= tag_count_dict[k]
-    with open("prior probability.txt", 'w') as f:
-        # pp.pprint(tag_first_dict)
-        # pp.pprint(tag_count_dict)
-        # pp.pprint(transition_dict)
-        # pp.pprint(emission_dict)
-
-        pp1 = pprint.PrettyPrinter(stream=f)
-        pp1.pprint("Initial Probability:")
-        pp1.pprint(tag_first_dict)
-        pp1.pprint("Tag Count:")
-        pp1.pprint(tag_count_dict)
-        pp1.pprint("Transition Count:")
-        pp1.pprint(transition_dict)
-        pp1.pprint("Emission Count:")
-        pp1.pprint(emission_dict)
+    # with open("prior probability.txt", 'w') as f:
+        # pp1 = pprint.PrettyPrinter(stream=f)
+        # pp1.pprint("Initial Probability:")
+        # pp1.pprint(tag_first_dict)
+        # pp1.pprint("Tag Count:")
+        # pp1.pprint(tag_count_dict)
+        # pp1.pprint("Transition Count:")
+        # pp1.pprint(transition_dict)
+        # pp1.pprint("Emission Count:")
+        # pp1.pprint(emission_dict)
 
     ## Compute the transition probability
     for cur_tag in transition_dict:
@@ -156,9 +153,9 @@ def viterbi(observe, initial, trans, emission):
         prev[0, i] = None
     # normalize
     norm_factor = prob[0].sum()
-    pp.pprint(norm_factor)
+    # pp.pprint(norm_factor)
     prob[0] = prob[0] / norm_factor
-    pp1.pprint(prob[0])
+    # pp1.pprint(prob[0])
     # pp.pprint(prev)
 
     for t in range(1, word_length):
@@ -203,9 +200,9 @@ def tag(training_list, test_file, output_file):
     full_training_list = []
     for train_file in training_list:
         full_training_list.extend(read_file_to_list(train_file))
-    print(len(full_training_list))
+    print(f'Training size: {len(full_training_list)}')
     for i in range(len(full_training_list)):
-        full_training_list[i] = full_training_list[i].replace(" ", "").strip().split(':')
+        full_training_list[i] = full_training_list[i].strip().split(' : ')
         if len(full_training_list[i]) > 2 and full_training_list[i][-1] == "PUN":
             full_training_list[i] = [':', 'PUN']
         full_training_list[i][0] = full_training_list[i][0].lower()
@@ -245,13 +242,17 @@ if __name__ == '__main__':
     # print("Test file: " + test_file)
     # print("Output file: " + output_file)
 
+    st = time.time()
     # Start the training and tagging operation.
     tag(training_list, test_file, output_file)
 
-    # need to change training 2
+    solution_txt = 'data/training5.txt'
+    results_txt = 'data/resultst3t5.txt'
+
+    # need to change solution file
     with open(output_file, "r") as output_file, \
-            open("data/training2.txt", "r") as solution_file, \
-            open("results.txt", "w") as results_file:
+            open(solution_txt, "r") as solution_file, \
+            open(results_txt, "w") as results_file:
         # Each word is on a separate line in each file.
         output = output_file.readlines()
         solution = solution_file.readlines()
@@ -269,3 +270,6 @@ if __name__ == '__main__':
         # Add stats at the end of the results file.
         results_file.write(f"Total words seen: {len(output)}.\n")
         results_file.write(f"Total matches: {total_matches}.\n")
+        results_file.write(f'Accuracy: {total_matches / len(output)}.\n')
+        et = time.time()
+        results_file.write(f'Elapsed time: {et - st} seconds')
