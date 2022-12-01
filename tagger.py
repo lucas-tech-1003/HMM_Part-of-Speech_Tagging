@@ -58,10 +58,12 @@ def _initial_probability(word_tag):
     transition_dict = dict.fromkeys(ALL_TAGS, None)
     # init the emission probability Matrix
     emission_dict = dict.fromkeys(ALL_TAGS, None)
+    emission_dict2 = dict.fromkeys(ALL_TAGS, None)
 
     for key in transition_dict:
         transition_dict[key] = dict.fromkeys(ALL_TAGS, 0)
         emission_dict[key] = dict()
+        emission_dict2[key] = dict()
 
     word, tag = word_tag[0]
     tag_first_dict[tag] += 1
@@ -80,6 +82,13 @@ def _initial_probability(word_tag):
             emission_dict[tag][word] += 1
         else:
             emission_dict[tag][word] = 1
+        # emission_dict 2
+        if word[-2:].isalpha() and len(word) >= 2:
+            last_two = word[-2:]
+            if last_two in emission_dict2[tag]:
+                emission_dict2[tag][last_two] += 1
+            else:
+                emission_dict2[tag][last_two] = 1
         # tag_first_dict
         if prev_word in END_SENTENCE_SIG:
             # tag is at the beginning of the sentence
@@ -120,12 +129,19 @@ def _initial_probability(word_tag):
                 continue
             count = emission_dict[cur_tag][word]
             emission_dict[cur_tag][word] = count / tag_count_dict[cur_tag]
+        for last_two in emission_dict2[cur_tag]:
+            if tag_count_dict[cur_tag] == 0:
+                emission_dict2[cur_tag][last_two] = float(0)
+                continue
+            count = emission_dict2[cur_tag][last_two]
+            emission_dict2[cur_tag][last_two] = count / tag_count_dict[cur_tag]
     # pp.pprint(emission_dict)
+    print("Done Processing")
 
-    return tag_first_dict, transition_dict, emission_dict
+    return tag_first_dict, transition_dict, emission_dict, emission_dict2
 
 
-def viterbi(observe, initial, trans, emission):
+def viterbi(observe, initial, trans, emission, emission2):
     """
     observe: word observed.
         List[str]
@@ -145,11 +161,32 @@ def viterbi(observe, initial, trans, emission):
     # prev[i,j] is the tag at time i
     prev = np.zeros((word_length, tag_length))
 
+    # Turn initial dict into matrix
+    initial_mat = np.array(list(initial.values())).T
+    # pp.pprint(initial_mat)
+
+    # Turn transition and emission dictionaries into matrices
+    trans_mat = [list(trans[k].values()) for k in trans]
+    trans_mat = np.array(trans_mat)
+    # pp.pprint(trans_mat)
+
+    emission_temp = [list(emission[k].items()) for k in emission]
+    trained_words = []
+    trained_last2 = []
+    for k in emission:
+        trained_words.extend(emission[k].keys())
+        trained_last2.extend(emission2[k].keys())
+    pp.pprint(emission_temp)
+
+    emission2_temp = [list(emission2[k].items()) for k in emission2]
+
+
+
     pp1 = pprint.PrettyPrinter(stream=open("prob_matrix.txt", 'w'))
 
     for i in range(tag_length):
         tag = ALL_TAGS[i]
-        prob[0, i] = initial[tag] * emission[tag].get(observe[0], 1e-7)
+        prob[0, i] = initial[tag] * emission[tag].get(observe[0], 1e-7) * emission2[tag].get(observe[0][-2:], 1e-7) ** 0.5
         prev[0, i] = None
     # normalize
     norm_factor = prob[0].sum()
@@ -168,7 +205,11 @@ def viterbi(observe, initial, trans, emission):
             for k, tag in enumerate(ALL_TAGS):
                 tran = trans[cur_tag].get(tag, 1e-7)
                 emis = emission[cur_tag].get(cur_word, 1e-7)
-                cur_prob = prob[t-1, k] * tran * emis
+                if len(cur_word) >= 2 and cur_word[-2:].isalpha():
+                    emis2 = emission2[cur_tag].get(cur_word[-2:], 1e-7)
+                    cur_prob = prob[t-1, k] * tran * emis * emis2 ** 0.5
+                else:
+                    cur_prob = prob[t-1, k] * tran * emis
                 if cur_prob > max_prob:
                     max_prob = cur_prob
                     most_likely_tag = k
@@ -217,10 +258,10 @@ def tag(training_list, test_file, output_file):
     # pp.pprint(test_list)
 
     ## Find the initial, transition, emission probability matrix
-    Initial, Transition, Emission = _initial_probability(full_training_list)
+    Initial, Transition, Emission, Emission2 = _initial_probability(full_training_list)
 
     ## Viterbi algorithm
-    result = viterbi(lower_test_list, Initial, Transition, Emission)
+    result = viterbi(lower_test_list, Initial, Transition, Emission, Emission2)
     # pp.pprint(result)
 
     # write to output_file
