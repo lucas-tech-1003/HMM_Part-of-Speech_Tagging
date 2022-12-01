@@ -214,7 +214,7 @@ def viterbi(observe, initial, trans, emission, emission2):
 
     pp1 = pprint.PrettyPrinter(stream=open("prob_matrix.txt", 'w'))
 
-    hyperparam = 0.5
+    hyperparam = 0.455
 
     first_word = observe[0].lower()
     last2 = -1
@@ -236,13 +236,13 @@ def viterbi(observe, initial, trans, emission, emission2):
         cur_word_index = check_word_observed(cur_word, word_index)
         for i in range(tag_length):
             if last2 == -1:
-                cur_prob = prob[t-1] * trans_mat[:][i] * emis_mat1[cur_word_index]
+                cur_prob = prob[t-1] * trans_mat[i] * emis_mat1[cur_word_index]
             else:
-                cur_prob = prob[t-1] * trans_mat[:][i] * emis_mat1[cur_word_index] * emis_mat2[last2] ** hyperparam
+                cur_prob = prob[t-1] * trans_mat[i] * emis_mat1[cur_word_index] * emis_mat2[last2] ** hyperparam
 
             x = np.argmax(cur_prob)
             # Caution
-            prob[t, i] = prob[t-1, x] * trans_mat[x, i] * emis_mat1[cur_word_index, x] * emis_mat2[last2, x] ** hyperparam
+            prob[t, i] = prob[t-1, x] * trans_mat[i, x] * emis_mat1[cur_word_index, x] * emis_mat2[last2, x] ** hyperparam
             prev[t, i] = x
         # normalize
         norm_factor = prob[t].sum()
@@ -293,6 +293,7 @@ def viterbi(observe, initial, trans, emission, emission2):
         pred_list.append(ALL_TAGS[index])
         last_tag_index = index
     pred_list.reverse()
+    pred_list.insert(0, pred_list.pop())
     return pred_list
 
 
@@ -352,8 +353,8 @@ if __name__ == '__main__':
     # Start the training and tagging operation.
     tag(training_list, test_file, output_file)
 
-    solution_txt = 'data/training2.txt'
-    results_txt = 'data/resultst1t2.txt'
+    solution_txt = 'data/training1.txt'
+    results_txt = 'data/resultst5t1.txt'
 
     # need to change solution file
     with open(output_file, "r") as output_file, \
