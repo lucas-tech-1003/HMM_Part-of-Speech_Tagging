@@ -141,6 +141,46 @@ def _initial_probability(word_tag):
     return tag_first_dict, transition_dict, emission_dict, emission_dict2
 
 
+def transform_emission_dict(word_emission, last2_emission):
+    trained_words = []
+    trained_last2 = []
+    for k in word_emission:
+        trained_words.extend(word_emission[k].keys())
+        trained_last2.extend(last2_emission[k].keys())
+    trained_words = np.unique(trained_words)
+    trained_last2 = np.unique(trained_last2)
+    # create word to index dictionaries
+    word_index = dict()
+    last2_index = dict()
+    for i, word in enumerate(trained_words):
+        word_index[word] = i
+    for j, last in enumerate(trained_last2):
+        last2_index[last] = j
+    word_length = len(trained_words)
+    tag_length = len(ALL_TAGS)
+    last2_length = len(trained_last2)
+    word_matrix = np.full((word_length + 1, tag_length), 1e-7)
+    last2_matrix = np.full((last2_length + 1, tag_length), 1e-7)
+    for i, tag in enumerate(ALL_TAGS):
+        for word in word_emission[tag]:
+            w_index = word_index[word]
+            prob = word_emission[tag][word]
+            word_matrix[w_index][i] = prob
+        for last2 in last2_emission[tag]:
+            l_index = last2_index[last2]
+            prob = last2_emission[tag][last2]
+            last2_matrix[l_index][i] = prob
+
+    return word_matrix, last2_matrix, word_index, last2_index
+
+
+def check_word_observed(word, to_index):
+    try:
+        return to_index[word]
+    except KeyError:
+        return -1
+
+
 def viterbi(observe, initial, trans, emission, emission2):
     """
     observe: word observed.
@@ -170,54 +210,79 @@ def viterbi(observe, initial, trans, emission, emission2):
     trans_mat = np.array(trans_mat)
     # pp.pprint(trans_mat)
 
-    emission_temp = [list(emission[k].items()) for k in emission]
-    trained_words = []
-    trained_last2 = []
-    for k in emission:
-        trained_words.extend(emission[k].keys())
-        trained_last2.extend(emission2[k].keys())
-    pp.pprint(emission_temp)
-
-    emission2_temp = [list(emission2[k].items()) for k in emission2]
-
-
+    emis_mat1, emis_mat2, word_index, last2_index = transform_emission_dict(emission, emission2)
 
     pp1 = pprint.PrettyPrinter(stream=open("prob_matrix.txt", 'w'))
 
-    for i in range(tag_length):
-        tag = ALL_TAGS[i]
-        prob[0, i] = initial[tag] * emission[tag].get(observe[0], 1e-7) * emission2[tag].get(observe[0][-2:], 1e-7) ** 0.5
-        prev[0, i] = None
+    hyperparam = 0.5
+
+    first_word = observe[0].lower()
+    last2 = -1
+    if len(first_word) >= 2 and first_word[-2:].isalpha():
+        last2 = check_word_observed(first_word[-2:], last2_index)
+    first_word = check_word_observed(first_word, word_index)
+    prob[0] = initial_mat * emis_mat1[first_word] * emis_mat2[last2] ** hyperparam
+    prev[0] = None
+
     # normalize
     norm_factor = prob[0].sum()
-    # pp.pprint(norm_factor)
     prob[0] = prob[0] / norm_factor
-    # pp1.pprint(prob[0])
-    # pp.pprint(prev)
 
     for t in range(1, word_length):
+        cur_word = observe[t].lower()
+        last2 = -1
+        if len(cur_word) >= 2 and cur_word[-2:].isalpha():
+            last2 = check_word_observed(cur_word[-2:], last2_index)
+        cur_word_index = check_word_observed(cur_word, word_index)
         for i in range(tag_length):
-            # find the most likely tag at time t
-            cur_tag = ALL_TAGS[i]
-            cur_word = observe[t]
-            most_likely_tag = 0
-            max_prob = float(0)
-            for k, tag in enumerate(ALL_TAGS):
-                tran = trans[cur_tag].get(tag, 1e-7)
-                emis = emission[cur_tag].get(cur_word, 1e-7)
-                if len(cur_word) >= 2 and cur_word[-2:].isalpha():
-                    emis2 = emission2[cur_tag].get(cur_word[-2:], 1e-7)
-                    cur_prob = prob[t-1, k] * tran * emis * emis2 ** 0.5
-                else:
-                    cur_prob = prob[t-1, k] * tran * emis
-                if cur_prob > max_prob:
-                    max_prob = cur_prob
-                    most_likely_tag = k
-            prob[t, i] = max_prob
-            prev[t, i] = most_likely_tag
+            if last2 == -1:
+                cur_prob = prob[t-1] * trans_mat[:][i] * emis_mat1[cur_word_index]
+            else:
+                cur_prob = prob[t-1] * trans_mat[:][i] * emis_mat1[cur_word_index] * emis_mat2[last2] ** hyperparam
+
+            x = np.argmax(cur_prob)
+            # Caution
+            prob[t, i] = prob[t-1, x] * trans_mat[x, i] * emis_mat1[cur_word_index, x] * emis_mat2[last2, x] ** hyperparam
+            prev[t, i] = x
         # normalize
         norm_factor = prob[t].sum()
         prob[t] = prob[t] / norm_factor
+
+
+    # for i in range(tag_length):
+    #     tag = ALL_TAGS[i]
+    #     prob[0, i] = initial[tag] * emission[tag].get(observe[0], 1e-7) * emission2[tag].get(observe[0][-2:], 1e-7) ** 0.5
+    #     prev[0, i] = None
+    # # normalize
+    # norm_factor = prob[0].sum()
+    # # pp.pprint(norm_factor)
+    # prob[0] = prob[0] / norm_factor
+    # # pp1.pprint(prob[0])
+    # # pp.pprint(prev)
+    #
+    # for t in range(1, word_length):
+    #     for i in range(tag_length):
+    #         # find the most likely tag at time t
+    #         cur_tag = ALL_TAGS[i]
+    #         cur_word = observe[t]
+    #         most_likely_tag = 0
+    #         max_prob = float(0)
+    #         for k, tag in enumerate(ALL_TAGS):
+    #             tran = trans[cur_tag].get(tag, 1e-7)
+    #             emis = emission[cur_tag].get(cur_word, 1e-7)
+    #             if len(cur_word) >= 2 and cur_word[-2:].isalpha():
+    #                 emis2 = emission2[cur_tag].get(cur_word[-2:], 1e-7)
+    #                 cur_prob = prob[t-1, k] * tran * emis * emis2 ** 0.5
+    #             else:
+    #                 cur_prob = prob[t-1, k] * tran * emis
+    #             if cur_prob > max_prob:
+    #                 max_prob = cur_prob
+    #                 most_likely_tag = k
+    #         prob[t, i] = max_prob
+    #         prev[t, i] = most_likely_tag
+    #     # normalize
+    #     norm_factor = prob[t].sum()
+    #     prob[t] = prob[t] / norm_factor
     # pp1.pprint(prob[300:310])
     # pp1.pprint(prev)
     last_tag_index = np.argmax(prob[-1])
@@ -287,8 +352,8 @@ if __name__ == '__main__':
     # Start the training and tagging operation.
     tag(training_list, test_file, output_file)
 
-    solution_txt = 'data/training5.txt'
-    results_txt = 'data/resultst3t5.txt'
+    solution_txt = 'data/training2.txt'
+    results_txt = 'data/resultst1t2.txt'
 
     # need to change solution file
     with open(output_file, "r") as output_file, \
